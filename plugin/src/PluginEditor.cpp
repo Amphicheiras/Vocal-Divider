@@ -11,7 +11,7 @@ PluginEditor::PluginEditor(
 
     addAndMakeVisible(fundamentalFrequencyLabel);
     fundamentalFrequencyLabel.setJustificationType(juce::Justification::centred);
-    fundamentalFrequencyLabel.setText("Fundamental Frequency: 0 Hz", juce::dontSendNotification);
+    fundamentalFrequencyLabel.setText("Fundamental Frequency #1: 0 Hz\nFundamental Frequency #2: 0 Hz", juce::dontSendNotification);
 
     startTimerHz(30);
 }
@@ -38,5 +38,5 @@ void PluginEditor::resized()
 
 void PluginEditor::timerCallback()
 {
-    fundamentalFrequencyLabel.setText("Fundamental Frequency: " + juce::String(audioProcessor.getFundamentalFrequency()) + " Hz", juce::dontSendNotification);
+    fundamentalFrequencyLabel.setText("Fundamental Frequency #1: " + juce::String(audioProcessor.getFundamentalFrequency(0)) + " Hz" + "Fundamental Frequency #2: " + juce::String(audioProcessor.getFundamentalFrequency(1)) + " Hz", juce::dontSendNotification);
 }
