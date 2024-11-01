@@ -46,7 +46,7 @@ private:
     juce::AudioBuffer<float> fftBuffer;
     static constexpr int fftOrder = 12; // 2^10 = 1024-point FFT
     static constexpr int fftSize = 1 << fftOrder;
-    std::vector<int> fundamentalFrequency = {0, 0};
+    std::vector<int> fundamentalFrequency;
     float PI = 3.14159265359f;
 
     void applyBandpassFilter(juce::AudioBuffer<float> &buffer, float cutoffFrequency);

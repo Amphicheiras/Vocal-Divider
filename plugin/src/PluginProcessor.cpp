@@ -6,7 +6,8 @@ PluginProcessor::PluginProcessor()
                          .withInput("Input", juce::AudioChannelSet::stereo(), true)
                          .withOutput("Output", juce::AudioChannelSet::stereo(), true)),
       fft(fftOrder),
-      fftBuffer(2, fftSize)
+      fftBuffer(1, fftSize),
+      fundamentalFrequency(2, 0)
 {
 }
 
@@ -85,8 +86,8 @@ void PluginProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 
 void PluginProcessor::releaseResources()
 {
-    // When playback stops, you can use this as an opportunity to free up any
-    // spare memory, etc.
+    fftBuffer.clear();
+    fundamentalFrequency.clear();
 }
 
 bool PluginProcessor::isBusesLayoutSupported(const BusesLayout &layouts) const
@@ -118,48 +119,52 @@ void PluginProcessor::processBlock(juce::AudioBuffer<float> &buffer, juce::MidiB
     // **************** D O N T  T O U C H  T H A N K S! ****************
     juce::ignoreUnused(midiMessages);
     juce::ScopedNoDenormals noDenormals;
+    auto numSamples = buffer.getNumSamples();
     auto totalNumInputChannels = getTotalNumInputChannels();
     auto totalNumOutputChannels = getTotalNumOutputChannels();
     for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
-        buffer.clear(i, 0, buffer.getNumSamples());
+        buffer.clear(i, 0, numSamples);
     // ******************************************************************
 
-    // prepare voice buffers
-    auto numSamples = buffer.getNumSamples();
-
-    // for each channel
-    for (int channel = 0; channel < totalNumInputChannels; ++channel)
+    if (totalNumInputChannels == 2 && totalNumOutputChannels == 2)
     {
-        auto *channelData = buffer.getWritePointer(channel);
-
-        // buffer FFT
-        fftBuffer.clear();
-        for (int i = 0; i < numSamples && i < fftSize; ++i)
+        // process for each channel
+        for (int channel = 0; channel < totalNumInputChannels; ++channel)
         {
-            fftBuffer.setSample(0, i, channelData[i]);
-        }
-        fft.performFrequencyOnlyForwardTransform(fftBuffer.getWritePointer(channel));
+            auto *channelData = buffer.getWritePointer(channel);
 
-        // find fundamental frequency
-        float maxMagnitude = 0.0f;
-        int maxIndex = 0;
-        for (int i = 1; i < fftSize / 2; ++i)
-        {
-            if (fftBuffer.getSample(0, i) > maxMagnitude)
+            // buffer FFT
+            fftBuffer.clear();
+            for (int i = 0; i < numSamples && i < fftSize; ++i)
             {
-                maxMagnitude = fftBuffer.getSample(0, i);
-                maxIndex = i;
+                fftBuffer.setSample(0, i, channelData[i]);
             }
-        }
-        fundamentalFrequency[channel] = static_cast<int>(static_cast<float>(maxIndex) * (getSampleRate() / static_cast<float>(fftSize)));
+            fft.performFrequencyOnlyForwardTransform(fftBuffer.getWritePointer(0));
 
-        // find harmonics and apply bandpass
-        std::vector<int> harmonics;
-        for (int harmonicIndex = 1; harmonicIndex < getSampleRate() / 2; harmonicIndex += fundamentalFrequency[channel])
-        {
-            harmonics.push_back(fundamentalFrequency[channel] * harmonicIndex);
-            DBG(harmonics[harmonicIndex - 1]);
-            // applyBandpassFilter(buffer.getWritePointer(channel), harmonicIndex);
+            // find fundamental frequency
+            float maxMagnitude = 0.0f;
+            int maxIndex = 0;
+            for (int i = 1; i < fftSize / 2; ++i)
+            {
+                if (fftBuffer.getSample(0, i) > maxMagnitude)
+                {
+                    maxMagnitude = fftBuffer.getSample(0, i);
+                    maxIndex = i;
+                }
+            }
+            fundamentalFrequency[channel] = static_cast<int>(static_cast<float>(maxIndex) * (getSampleRate() / static_cast<float>(fftSize)));
+            // DBG(fundamentalFrequency[channel]);
+            // find harmonics and apply bandpass
+            std::vector<int> harmonics;
+            if (fundamentalFrequency[0] > 50 && fundamentalFrequency[1] > 50)
+            {
+                for (int harmonicIndex = 1; harmonicIndex < getSampleRate() / 2; harmonicIndex += fundamentalFrequency[channel])
+                {
+                    harmonics.push_back(fundamentalFrequency[channel] * harmonicIndex);
+                    // DBG(harmonics[harmonicIndex - 1]);
+                    // applyBandpassFilter(buffer.getWritePointer(channel), harmonicIndex);
+                }
+            }
         }
     }
 }
