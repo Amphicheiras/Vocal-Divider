@@ -82,7 +82,6 @@ void PluginProcessor::changeProgramName(int index,
 void PluginProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
     juce::ignoreUnused(sampleRate, samplesPerBlock);
-    fftBuffer.setSize(1, fftSize);
 }
 
 void PluginProcessor::releaseResources()
@@ -147,19 +146,24 @@ void PluginProcessor::processBlock(juce::AudioBuffer<float> &buffer, juce::MidiB
             int maxIndex = 0;
             for (int i = 1; i < fftSize / 2; ++i)
             {
-                float magnitude = fftBuffer.getSample(0, i);
-                if (magnitude > maxMagnitude)
+                if (fftBuffer.getSample(0, i) > maxMagnitude)
                 {
-                    maxMagnitude = magnitude;
+                    maxMagnitude = fftBuffer.getSample(0, i);
                     maxIndex = i;
                 }
             }
             fundamentalFrequency[channel] = static_cast<int>(static_cast<float>(maxIndex) * (getSampleRate() / static_cast<float>(fftSize)));
-
-            // apply comb bandpass filter
+            // DBG(fundamentalFrequency[channel]);
+            // find harmonics and apply bandpass
+            std::vector<int> harmonics;
             if (fundamentalFrequency[0] > 50 && fundamentalFrequency[1] > 50)
             {
-                applyCombFilterWithHarmonics(buffer, fundamentalFrequency[channel], 20);
+                for (int harmonicIndex = 1; harmonicIndex < getSampleRate() / 2; harmonicIndex += fundamentalFrequency[channel])
+                {
+                    harmonics.push_back(fundamentalFrequency[channel] * harmonicIndex);
+                    // DBG(harmonics[harmonicIndex - 1]);
+                    // applyBandpassFilter(buffer.getWritePointer(channel), harmonicIndex);
+                }
             }
         }
     }
@@ -228,58 +232,6 @@ void PluginProcessor::applyBandpassFilter(juce::AudioBuffer<float> &buffer, floa
 
             // scale by 0.5 to stay in the [-1, 1] range
             channelSamples[i] = 0.5f * static_cast<float>(x - y);
-        }
-    }
-}
-
-void PluginProcessor::applyCombFilterWithHarmonics(juce::AudioBuffer<float> &buffer, int fundamentalFreq, int numHarmonics)
-{
-    const double sampleRate = getSampleRate();
-    const float scalingFactor = 0.5f; // Scale to avoid clipping if many harmonics are added
-
-    std::vector<std::vector<double>> x1, x2, y1, y2;
-    x1.resize(numHarmonics, std::vector<double>(buffer.getNumChannels(), 0.0));
-    x2.resize(numHarmonics, std::vector<double>(buffer.getNumChannels(), 0.0));
-    y1.resize(numHarmonics, std::vector<double>(buffer.getNumChannels(), 0.0));
-    y2.resize(numHarmonics, std::vector<double>(buffer.getNumChannels(), 0.0));
-
-    for (int channel = 0; channel < buffer.getNumChannels(); ++channel)
-    {
-        auto *channelSamples = buffer.getWritePointer(channel);
-
-        for (int i = 0; i < buffer.getNumSamples(); ++i)
-        {
-            float combinedOutput = 0.0f;
-
-            for (int n = 1; n <= numHarmonics; ++n)
-            {
-                double harmonicFrequency = n * fundamentalFreq;
-                if (harmonicFrequency >= sampleRate / 2.0)
-                    break; // Nyquist limit
-
-                double omega = 2.0 * PI * harmonicFrequency / sampleRate;
-                double tanVal = std::tan(omega);
-                double c = (tanVal - 1.0) / (tanVal + 1.0);
-                double d = -std::cos(omega * 2.0);
-
-                std::vector<double> b = {-c, d * (1.0 - c), 1.0};
-                std::vector<double> a = {1.0, d * (1.0 - c), -c};
-
-                double x = static_cast<double>(channelSamples[i]);
-                double y = b[0] * x + b[1] * x1[n - 1][channel] + b[2] * x2[n - 1][channel] - a[1] * y1[n - 1][channel] - a[2] * y2[n - 1][channel];
-
-                // Update delay buffers
-                x2[n - 1][channel] = x1[n - 1][channel];
-                x1[n - 1][channel] = x;
-                y2[n - 1][channel] = y1[n - 1][channel];
-                y1[n - 1][channel] = y;
-
-                // Sum the harmonic component to the combined output
-                combinedOutput += static_cast<float>(y);
-            }
-
-            // Apply scaling and assign to buffer
-            channelSamples[i] = scalingFactor * combinedOutput;
         }
     }
 }
