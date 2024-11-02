@@ -36,9 +36,9 @@ public:
     void getStateInformation(juce::MemoryBlock &destData) override;
     void setStateInformation(const void *data, int sizeInBytes) override;
 
-    float getFundamentalFrequency() const
+    float getFundamentalFrequency(int channel) const
     {
-        return fundamentalFrequency;
+        return fundamentalFrequency[channel];
     }
 
 private:
@@ -46,7 +46,7 @@ private:
     juce::AudioBuffer<float> fftBuffer;
     static constexpr int fftOrder = 11; // 2^10 = 1024-point FFT
     static constexpr int fftSize = 1 << fftOrder;
-    float fundamentalFrequency = 0.0f;
+    std::vector<float> fundamentalFrequency;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PluginProcessor)
 };

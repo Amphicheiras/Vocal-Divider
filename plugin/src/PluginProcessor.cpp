@@ -3,7 +3,8 @@
 
 PluginProcessor::PluginProcessor() : AudioProcessor(BusesProperties().withInput("Input", juce::AudioChannelSet::stereo(), true).withOutput("Output", juce::AudioChannelSet::stereo(), true)),
                                      fft(fftOrder),
-                                     fftBuffer(2, fftSize)
+                                     fftBuffer(2, fftSize),
+                                     fundamentalFrequency(2, 0)
 {
 }
 
@@ -148,8 +149,8 @@ void PluginProcessor::processBlock(juce::AudioBuffer<float> &buffer, juce::MidiB
         }
     }
     // calculate F0
-    fundamentalFrequency = static_cast<float>(static_cast<float>(maxIndex) * (getSampleRate() / static_cast<float>(fftSize)));
-    DBG("Fundamental Frequency: " << fundamentalFrequency);
+    fundamentalFrequency[0] = static_cast<float>(static_cast<float>(maxIndex) * (getSampleRate() / static_cast<float>(fftSize)));
+    DBG("Fundamental Frequency: " << fundamentalFrequency[0]);
 
     // separate voices
 

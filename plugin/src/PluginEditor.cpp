@@ -36,5 +36,5 @@ void PluginEditor::resized()
 
 void PluginEditor::timerCallback()
 {
-    fundamentalFrequencyLabel.setText("Fundamental Frequency: " + juce::String(audioProcessor.getFundamentalFrequency()) + " Hz", juce::dontSendNotification);
+    fundamentalFrequencyLabel.setText("Fundamental Frequency: " + juce::String(audioProcessor.getFundamentalFrequency(0)) + " Hz", juce::dontSendNotification);
 }
