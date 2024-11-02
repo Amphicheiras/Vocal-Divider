@@ -17,7 +17,8 @@ public:
 private:
     PluginProcessor &audioProcessor;
 
-    juce::Label fundamentalFrequencyLabel;
+    juce::Label leftFundamentalFrequencyLabel;
+    juce::Label rightFundamentalFrequencyLabel;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PluginEditor)
 };
