@@ -123,72 +123,56 @@ void PluginProcessor::processBlock(juce::AudioBuffer<float> &buffer, juce::MidiB
         buffer.clear(i, 0, numSamples);
     // ****************************************************
 
-    // process each channel
-    for (int channel = 0; channel < totalNumInputChannels; ++channel)
+    fftBuffer.clear();
+    //  assume mono input (mixed stereo)
+    fftBuffer.copyFrom(0, 0, buffer.getWritePointer(0), fftSize);
+    // FFT
+    fft.performFrequencyOnlyForwardTransform(fftBuffer.getWritePointer(0));
+
+    // obtain f0
+    // Find the magnitudes in the FFT
+    std::vector<float> magnitudes(fftSize / 2);
+    for (int i = 1; i < fftSize / 2; ++i)
     {
-        auto *channelData = buffer.getWritePointer(channel);
-        // FFT with window
-        fftBuffer.clear();
-        for (int i = 0; i < fftSize && i < numSamples; ++i)
-        {
-            float windowedSample = channelData[i] * 0.5f * (1.0f - cos(2.0f * juce::MathConstants<float>::pi * i / (fftSize - 1)));
-            fftBuffer.setSample(0, i, windowedSample);
-        }
-        fft.performRealOnlyForwardTransform(fftBuffer.getWritePointer(0), true);
-
-        // find fundamental frequency (F0)
-        float maxMagnitude = 0.0f;
-        int fundamentalBin = 0;
-        for (int i = 1; i < fftSize / 2; ++i)
-        {
-            float magnitude = fftBuffer.getSample(0, i);
-            if (magnitude > maxMagnitude)
-            {
-                maxMagnitude = magnitude;
-                fundamentalBin = i;
-            }
-        }
-        // calculate F0 frequency in Hz
-        fundamentalFrequency[channel] = static_cast<int>(fundamentalBin * (getSampleRate() / fftSize)) / 2;
-        DBG(fundamentalFrequency[channel]);
-
-        // WORKS!!!!
-
-        // identify harmonic bins
-        std::vector<int> harmonicBins;
-        for (int harmonicIndex = 1; harmonicIndex < 4; ++harmonicIndex)
-        {
-            int harmonicFrequency = fundamentalFrequency[channel] * harmonicIndex;
-            int harmonicBin = static_cast<int>(harmonicFrequency * fftSize / getSampleRate());
-            harmonicBins.push_back(harmonicBin);
-        }
-        // DBG("fft size is: " + (juce::String)fftSize + " harmonic 1: " + (juce::String)harmonicBins[0] + " 2: " + (juce::String)harmonicBins[1] + " 3: " + (juce::String)harmonicBins[2]);
-
-        // apply comb filtering
-        int bandWidth = 3;
-        for (int i = 0; i < fftSize / 2; ++i)
-        {
-            bool isInHarmonicRange = false;
-
-            for (int harmonicBin : harmonicBins)
-            {
-                if (i >= harmonicBin - bandWidth && i <= harmonicBin + bandWidth)
-                {
-                    isInHarmonicRange = true;
-                    break;
-                }
-            }
-
-            if (!isInHarmonicRange)
-            {
-                fftBuffer.setSample(0, i, 0.0f); // Zero out non-harmonic frequencies
-            }
-        }
-
-        // IFFT and send to output buffer
-        fft.performRealOnlyInverseTransform(fftBuffer.getWritePointer(0));
-        buffer.copyFrom(channel, 0, fftBuffer, 0, 0, numSamples);
+        magnitudes[i] = fftBuffer.getSample(0, i);
     }
+    // Finding local maxima
+    std::vector<int> localMaximaIndices;
+    for (int i = 1; i < magnitudes.size() - 1; ++i)
+    {
+        // Check for local maxima
+        if (magnitudes[i] > 5)
+        {
+            if (magnitudes[i] > magnitudes[i - 1] && magnitudes[i] > magnitudes[i + 1])
+            {
+                localMaximaIndices.push_back(i);
+            }
+        }
+    }
+
+    // If we found local maxima, identify the fundamental frequency (f0)
+    if (!localMaximaIndices.empty())
+    {
+        DBG(magnitudes[localMaximaIndices[0]]);
+        // Assuming the first local maximum is the fundamental frequency
+        fundamentalFrequency[0] = static_cast<int>(localMaximaIndices[0] * (getSampleRate() / fftSize));
+
+        // Assuming the second local maximum is the first harmonic
+        if (localMaximaIndices.size() > 1)
+        {
+            DBG(magnitudes[localMaximaIndices[1]]);
+            fundamentalFrequency[1] = static_cast<int>(localMaximaIndices[1] * (getSampleRate() / fftSize));
+        }
+    }
+
+    // Debug output to see detected frequencies
+    DBG("Fundamental Frequencies: F0: " + juce::String(fundamentalFrequency[0]) + " F1: " + juce::String(fundamentalFrequency[1]));
+    // -------------------
+
+    if (fundamentalFrequency[0] > 0)
+        applyBandpassFilter(buffer, 0, fundamentalFrequency[0], 20.0f);
+    if (fundamentalFrequency[1] > 0)
+        applyBandpassFilter(buffer, 1, fundamentalFrequency[1], 20.0f);
 }
 
 bool PluginProcessor::hasEditor() const
@@ -222,4 +206,42 @@ void PluginProcessor::setStateInformation(const void *data, int sizeInBytes)
 juce::AudioProcessor *JUCE_CALLTYPE createPluginFilter()
 {
     return new PluginProcessor();
+}
+
+void PluginProcessor::applyBandpassFilter(juce::AudioBuffer<float> &buffer, int channel, int centerFrequency, float bandwidth)
+{
+    // resize the allpass buffers to the number of channels and
+    // zero the new ones
+    x1.resize(1, 0.0);
+    x2.resize(1, 0.0);
+    y1.resize(1, 0.0);
+    y2.resize(1, 0.0);
+
+    const double normalizedCenterFreq = centerFrequency / getSampleRate();
+    const double tanHalfBand = std::tan(PI * bandwidth / getSampleRate());
+    const double c = (tanHalfBand - 1.0) / (tanHalfBand + 1.0);
+    const double d = -std::cos(2.0 * PI * normalizedCenterFreq);
+
+    std::vector<double> b = {-c, d * (1.f - c), 1.f};
+    std::vector<double> a = {1.f, d * (1.f - c), -c};
+
+    // const double Q = 5.0;
+    // double BW = centerFrequency / Q;
+
+    auto channelSamples = buffer.getWritePointer(channel);
+
+    // for each sample in the channel
+    for (int i = 0; i < buffer.getNumSamples(); ++i)
+    {
+        double x = static_cast<double>(channelSamples[i]);
+        double y = b[0] * x + b[1] * x1[0] + b[2] * x2[0] - a[1] * y1[0] - a[2] * y2[0];
+
+        y2[0] = y1[0];
+        y1[0] = y;
+        x2[0] = x1[0];
+        x1[0] = x;
+
+        // we scale by 0.5 to stay in the [-1, 1] range
+        channelSamples[i] = static_cast<float>(0.5 * (x - y));
+    }
 }
