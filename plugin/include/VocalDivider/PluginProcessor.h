@@ -44,7 +44,7 @@ public:
 private:
     juce::dsp::FFT fft;
     juce::AudioBuffer<float> fftBuffer;
-    static constexpr int fftOrder = 11; // 2^10 = 1024-point FFT
+    static constexpr int fftOrder = 10; // 2^10 = 1024-point FFT
     static constexpr int fftSize = 1 << fftOrder;
     std::vector<int> fundamentalFrequency;
 

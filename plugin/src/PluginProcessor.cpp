@@ -118,64 +118,41 @@ void PluginProcessor::processBlock(juce::AudioBuffer<float> &buffer, juce::MidiB
     juce::ScopedNoDenormals noDenormals;
     auto totalNumInputChannels = getTotalNumInputChannels();
     auto totalNumOutputChannels = getTotalNumOutputChannels();
-    for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
-        buffer.clear(i, 0, buffer.getNumSamples());
-    // ******************************************************************
-
-    // prepare voice buffers
     auto numSamples = buffer.getNumSamples();
-    juce::AudioBuffer<float> leftVoiceBuffer(1, numSamples);
-    juce::AudioBuffer<float> rightVoiceBuffer(1, numSamples);
-    auto *leftChannelInput = buffer.getWritePointer(0);
-    auto *rightChannelInput = buffer.getWritePointer(1);
+    for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
+        buffer.clear(i, 0, numSamples);
+    // ****************************************************
 
+    // process each channel
     for (int channel = 0; channel < totalNumInputChannels; ++channel)
     {
-        // do FFT
+        auto *channelData = buffer.getWritePointer(channel);
+        // FFT with window
         fftBuffer.clear();
-        for (int i = 0; i < numSamples && i < fftSize; ++i)
+        for (int i = 0; i < fftSize && i < numSamples; ++i)
         {
-            fftBuffer.setSample(0, i, leftChannelInput[i]);
+            float windowedSample = channelData[i] * 0.5f * (1.0f - cos(2.0f * juce::MathConstants<float>::pi * i / (fftSize - 1)));
+            fftBuffer.setSample(0, i, windowedSample);
         }
-        fft.performFrequencyOnlyForwardTransform(fftBuffer.getWritePointer(0));
+        fft.performRealOnlyForwardTransform(fftBuffer.getWritePointer(0), true);
 
         // find fundamental frequency (F0)
         float maxMagnitude = 0.0f;
-        int maxIndex = 0;
+        int fundamentalBin = 0;
         for (int i = 1; i < fftSize / 2; ++i)
         {
-            if (fftBuffer.getSample(0, i) > maxMagnitude)
+            float magnitude = fftBuffer.getSample(0, i);
+            if (magnitude > maxMagnitude)
             {
-                maxMagnitude = fftBuffer.getSample(0, i);
-                maxIndex = i;
+                maxMagnitude = magnitude;
+                fundamentalBin = i;
             }
         }
+        // calculate F0 frequency in Hz
+        fundamentalFrequency[channel] = static_cast<int>(fundamentalBin * (getSampleRate() / fftSize)) / 2;
+        DBG(fundamentalFrequency[channel]);
 
-        // calculate F0
-        fundamentalFrequency[0] = static_cast<int>(static_cast<float>(maxIndex) * (getSampleRate() / static_cast<float>(fftSize)));
-
-        // do FFT
-        fftBuffer.clear();
-        for (int i = 0; i < numSamples && i < fftSize; ++i)
-        {
-            fftBuffer.setSample(0, i, rightChannelInput[i]);
-        }
-        fft.performFrequencyOnlyForwardTransform(fftBuffer.getWritePointer(0));
-
-        // find fundamental frequency (F0)
-        maxMagnitude = 0.0f;
-        maxIndex = 0;
-        for (int i = 1; i < fftSize / 2; ++i)
-        {
-            if (fftBuffer.getSample(0, i) > maxMagnitude)
-            {
-                maxMagnitude = fftBuffer.getSample(0, i);
-                maxIndex = i;
-            }
-        }
-
-        // calculate F0
-        fundamentalFrequency[1] = static_cast<int>(static_cast<float>(maxIndex) * (getSampleRate() / static_cast<float>(fftSize)));
+        // WORKS!!!!
 
         // identify harmonic bins
         std::vector<int> harmonicBins;
@@ -185,9 +162,9 @@ void PluginProcessor::processBlock(juce::AudioBuffer<float> &buffer, juce::MidiB
             int harmonicBin = static_cast<int>(harmonicFrequency * fftSize / getSampleRate());
             harmonicBins.push_back(harmonicBin);
         }
-        DBG("1: " + (juce::String)harmonicBins[0] + " 2: " + (juce::String)harmonicBins[1] + " 3: " + (juce::String)harmonicBins[2]);
+        // DBG("fft size is: " + (juce::String)fftSize + " harmonic 1: " + (juce::String)harmonicBins[0] + " 2: " + (juce::String)harmonicBins[1] + " 3: " + (juce::String)harmonicBins[2]);
 
-        // set a band around each harmonic bin and zero out the rest
+        // apply comb filtering
         int bandWidth = 3;
         for (int i = 0; i < fftSize / 2; ++i)
         {
@@ -208,21 +185,10 @@ void PluginProcessor::processBlock(juce::AudioBuffer<float> &buffer, juce::MidiB
             }
         }
 
-        // Perform inverse FFT to return to time domain
+        // IFFT and send to output buffer
         fft.performRealOnlyInverseTransform(fftBuffer.getWritePointer(0));
-
-        // Copy filtered data back to the output buffer
-        for (int i = 0; i < numSamples && i < fftSize; ++i)
-        {
-            if (channel == 0)
-                rightVoiceBuffer.setSample(0, i, fftBuffer.getSample(0, i));
-            else
-                leftVoiceBuffer.setSample(0, i, fftBuffer.getSample(0, i));
-        }
+        buffer.copyFrom(channel, 0, fftBuffer, 0, 0, numSamples);
     }
-
-    buffer.copyFrom(0, 0, leftVoiceBuffer, 0, 0, numSamples);
-    buffer.copyFrom(1, 0, rightVoiceBuffer, 0, 0, numSamples);
 }
 
 bool PluginProcessor::hasEditor() const
