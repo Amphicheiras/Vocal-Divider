@@ -131,16 +131,16 @@ void PluginProcessor::processBlock(juce::AudioBuffer<float> &buffer, juce::MidiB
         // process for each channel
         for (int channel = 0; channel < totalNumInputChannels; ++channel)
         {
-            // auto *channelData = buffer.getWritePointer(channel);
-
+            auto *channelData = buffer.getWritePointer(channel);
+            channelData;
             // buffer FFT
             fftBuffer.clear();
-            for (int i = 0; i < numSamples && i < fftSize; ++i)
-            {
-                //         fftBuffer.setSample(0, i, channelData[i]);
-            }
+            // for (int i = 0; i < numSamples && i < fftSize; ++i)
+            // {
+            //     fftBuffer.setSample(0, i, channelData[i]);
+            // }
 
-            //     fft.performFrequencyOnlyForwardTransform(fftBuffer.getWritePointer(0));
+            // fft.performFrequencyOnlyForwardTransform(fftBuffer.getWritePointer(0));
 
             //     // find fundamental frequency
             // float maxMagnitude = 0.0f;
@@ -156,16 +156,16 @@ void PluginProcessor::processBlock(juce::AudioBuffer<float> &buffer, juce::MidiB
             //     // fundamentalFrequency[channel] = static_cast<int>(static_cast<float>(maxIndex) * (getSampleRate() / static_cast<float>(fftSize)));
             //     // DBG(fundamentalFrequency[channel]);
             //     // find harmonics and apply bandpass
-            std::vector<int> harmonics;
-            if (fundamentalFrequency[0] > 50 && fundamentalFrequency[1] > 50)
-            {
-                //         for (int harmonicIndex = 1; harmonicIndex < getSampleRate() / 2; harmonicIndex += fundamentalFrequency[channel])
-                //         {
-                //             harmonics.push_back(fundamentalFrequency[channel] * harmonicIndex);
-                //             // DBG(harmonics[harmonicIndex - 1]);
-                //             // applyBandpassFilter(buffer.getWritePointer(channel), harmonicIndex);
-                //         }
-            }
+            // std::vector<int> harmonics;
+            // if (fundamentalFrequency[0] > 50 && fundamentalFrequency[1] > 50)
+            // {
+            //     //         for (int harmonicIndex = 1; harmonicIndex < getSampleRate() / 2; harmonicIndex += fundamentalFrequency[channel])
+            //     //         {
+            //     //             harmonics.push_back(fundamentalFrequency[channel] * harmonicIndex);
+            //     //             // DBG(harmonics[harmonicIndex - 1]);
+            //     //             // applyBandpassFilter(buffer.getWritePointer(channel), harmonicIndex);
+            //     //         }
+            // }
         }
     }
     else

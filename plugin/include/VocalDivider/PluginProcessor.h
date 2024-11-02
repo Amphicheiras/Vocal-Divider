@@ -36,6 +36,7 @@ public:
     void getStateInformation(juce::MemoryBlock &destData) override;
     void setStateInformation(const void *data, int sizeInBytes) override;
 
+    // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     int getFundamentalFrequency(int channel)
     {
         return fundamentalFrequency[channel];
@@ -44,7 +45,7 @@ public:
 private:
     juce::dsp::FFT fft;
     juce::AudioBuffer<float> fftBuffer;
-    static constexpr int fftOrder = 12; // 2^10 = 1024-point FFT
+    static constexpr int fftOrder = 9; // 2^10 = 1024-point FFT
     static constexpr int fftSize = 1 << fftOrder;
     std::vector<int> fundamentalFrequency;
     float PI = 3.14159265359f;
