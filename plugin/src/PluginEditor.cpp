@@ -1,9 +1,7 @@
 #include "VocalDivider/PluginEditor.h"
 #include "VocalDivider/PluginProcessor.h"
 
-PluginEditor::PluginEditor(
-    PluginProcessor &p)
-    : AudioProcessorEditor(&p), audioProcessor(p)
+PluginEditor::PluginEditor(PluginProcessor &p) : AudioProcessorEditor(&p), audioProcessor(p)
 {
     juce::ignoreUnused(audioProcessor);
 
@@ -11,7 +9,7 @@ PluginEditor::PluginEditor(
 
     addAndMakeVisible(fundamentalFrequencyLabel);
     fundamentalFrequencyLabel.setJustificationType(juce::Justification::centred);
-    fundamentalFrequencyLabel.setText("Fundamental Frequency #1: 0 Hz\nFundamental Frequency #2: 0 Hz", juce::dontSendNotification);
+    fundamentalFrequencyLabel.setText("Fundamental Frequency: 0 Hz", juce::dontSendNotification);
 
     startTimerHz(30);
 }
@@ -38,11 +36,5 @@ void PluginEditor::resized()
 
 void PluginEditor::timerCallback()
 {
-    fundamentalFrequencyLabel.setText("test", juce::dontSendNotification);
-    // fundamentalFrequencyLabel.setText(juce::File::getCurrentWorkingDirectory().getFullPathName(), juce::dontSendNotification);
-    // fundamentalFrequencyLabel.setText("Fundamental Frequency #1: ", juce::dontSendNotification);
-    // fundamentalFrequencyLabel.setText(
-    //     "Fundamental Frequency #1: " + juce::String(audioProcessor.getFundamentalFrequency(0)) + " Hz\n" +
-    //         "Fundamental Frequency #2: " + juce::String(audioProcessor.getFundamentalFrequency(1)) + " Hz",
-    //     juce::dontSendNotification);
+    fundamentalFrequencyLabel.setText("Fundamental Frequency: " + juce::String(audioProcessor.getFundamentalFrequency()) + " Hz", juce::dontSendNotification);
 }

@@ -2,7 +2,8 @@
 
 #include "VocalDivider/PluginProcessor.h"
 
-class PluginEditor final : public juce::AudioProcessorEditor, public juce::Timer
+class PluginEditor final : public juce::AudioProcessorEditor,
+                           public juce::Timer
 {
 public:
     explicit PluginEditor(PluginProcessor &);

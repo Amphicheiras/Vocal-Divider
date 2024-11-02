@@ -36,21 +36,17 @@ public:
     void getStateInformation(juce::MemoryBlock &destData) override;
     void setStateInformation(const void *data, int sizeInBytes) override;
 
-    // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    int getFundamentalFrequency(int channel)
+    float getFundamentalFrequency() const
     {
-        return fundamentalFrequency[channel];
+        return fundamentalFrequency;
     }
 
 private:
     juce::dsp::FFT fft;
     juce::AudioBuffer<float> fftBuffer;
-    static constexpr int fftOrder = 9; // 2^10 = 1024-point FFT
+    static constexpr int fftOrder = 11; // 2^10 = 1024-point FFT
     static constexpr int fftSize = 1 << fftOrder;
-    std::vector<int> fundamentalFrequency;
-    float PI = 3.14159265359f;
-
-    void applyBandpassFilter(juce::AudioBuffer<float> &buffer, float cutoffFrequency);
+    float fundamentalFrequency = 0.0f;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PluginProcessor)
 };
