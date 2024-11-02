@@ -36,7 +36,7 @@ void PluginEditor::paint(juce::Graphics &g)
 void PluginEditor::resized()
 {
     leftFundamentalFrequencyLabel.setBounds(10, 40, getWidth() - 20, 40);
-    rightFundamentalFrequencyLabel.setBounds(10, 70, getWidth() - 20, 70);
+    rightFundamentalFrequencyLabel.setBounds(10, 50, getWidth() - 20, 50);
 }
 
 void PluginEditor::timerCallback()

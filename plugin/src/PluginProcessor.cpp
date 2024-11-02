@@ -129,35 +129,100 @@ void PluginProcessor::processBlock(juce::AudioBuffer<float> &buffer, juce::MidiB
     auto *leftChannelInput = buffer.getWritePointer(0);
     auto *rightChannelInput = buffer.getWritePointer(1);
 
-    // do FFT
-    fftBuffer.clear();
-    for (int i = 0; i < numSamples && i < fftSize; ++i)
+    for (int channel = 0; channel < totalNumInputChannels; ++channel)
     {
-        fftBuffer.setSample(0, i, (leftChannelInput[i] + rightChannelInput[i]) * 0.5f);
-    }
-    fft.performFrequencyOnlyForwardTransform(fftBuffer.getWritePointer(0));
-
-    // find fundamental frequency (F0)
-    float maxMagnitude = 0.0f;
-    int maxIndex = 0;
-    for (int i = 1; i < fftSize / 2; ++i)
-    {
-        if (fftBuffer.getSample(0, i) > maxMagnitude)
+        // do FFT
+        fftBuffer.clear();
+        for (int i = 0; i < numSamples && i < fftSize; ++i)
         {
-            maxMagnitude = fftBuffer.getSample(0, i);
-            maxIndex = i;
+            fftBuffer.setSample(0, i, leftChannelInput[i]);
+        }
+        fft.performFrequencyOnlyForwardTransform(fftBuffer.getWritePointer(0));
+
+        // find fundamental frequency (F0)
+        float maxMagnitude = 0.0f;
+        int maxIndex = 0;
+        for (int i = 1; i < fftSize / 2; ++i)
+        {
+            if (fftBuffer.getSample(0, i) > maxMagnitude)
+            {
+                maxMagnitude = fftBuffer.getSample(0, i);
+                maxIndex = i;
+            }
+        }
+
+        // calculate F0
+        fundamentalFrequency[0] = static_cast<int>(static_cast<float>(maxIndex) * (getSampleRate() / static_cast<float>(fftSize)));
+
+        // do FFT
+        fftBuffer.clear();
+        for (int i = 0; i < numSamples && i < fftSize; ++i)
+        {
+            fftBuffer.setSample(0, i, rightChannelInput[i]);
+        }
+        fft.performFrequencyOnlyForwardTransform(fftBuffer.getWritePointer(0));
+
+        // find fundamental frequency (F0)
+        maxMagnitude = 0.0f;
+        maxIndex = 0;
+        for (int i = 1; i < fftSize / 2; ++i)
+        {
+            if (fftBuffer.getSample(0, i) > maxMagnitude)
+            {
+                maxMagnitude = fftBuffer.getSample(0, i);
+                maxIndex = i;
+            }
+        }
+
+        // calculate F0
+        fundamentalFrequency[1] = static_cast<int>(static_cast<float>(maxIndex) * (getSampleRate() / static_cast<float>(fftSize)));
+
+        // identify harmonic bins
+        std::vector<int> harmonicBins;
+        for (int harmonicIndex = 1; harmonicIndex < 4; ++harmonicIndex)
+        {
+            int harmonicFrequency = fundamentalFrequency[channel] * harmonicIndex;
+            int harmonicBin = static_cast<int>(harmonicFrequency * fftSize / getSampleRate());
+            harmonicBins.push_back(harmonicBin);
+        }
+        DBG("1: " + (juce::String)harmonicBins[0] + " 2: " + (juce::String)harmonicBins[1] + " 3: " + (juce::String)harmonicBins[2]);
+
+        // set a band around each harmonic bin and zero out the rest
+        int bandWidth = 3;
+        for (int i = 0; i < fftSize / 2; ++i)
+        {
+            bool isInHarmonicRange = false;
+
+            for (int harmonicBin : harmonicBins)
+            {
+                if (i >= harmonicBin - bandWidth && i <= harmonicBin + bandWidth)
+                {
+                    isInHarmonicRange = true;
+                    break;
+                }
+            }
+
+            if (!isInHarmonicRange)
+            {
+                fftBuffer.setSample(0, i, 0.0f); // Zero out non-harmonic frequencies
+            }
+        }
+
+        // Perform inverse FFT to return to time domain
+        fft.performRealOnlyInverseTransform(fftBuffer.getWritePointer(0));
+
+        // Copy filtered data back to the output buffer
+        for (int i = 0; i < numSamples && i < fftSize; ++i)
+        {
+            if (channel == 0)
+                rightVoiceBuffer.setSample(0, i, fftBuffer.getSample(0, i));
+            else
+                leftVoiceBuffer.setSample(0, i, fftBuffer.getSample(0, i));
         }
     }
-    // calculate F0
-    fundamentalFrequency[0] = static_cast<float>(static_cast<float>(maxIndex) * (getSampleRate() / static_cast<float>(fftSize)));
-    fundamentalFrequency[1] = static_cast<float>(static_cast<float>(maxIndex) * (getSampleRate() / static_cast<float>(fftSize)));
-    DBG("Fundamental Frequency: " << fundamentalFrequency[0]);
 
-    // separate voices
-
-    // output each voice to its respective channel (L, R)
-    // buffer.copyFrom(0, 0, leftVoiceBuffer, 0, 0, numSamples);
-    // buffer.copyFrom(1, 0, rightVoiceBuffer, 0, 0, numSamples);
+    buffer.copyFrom(0, 0, leftVoiceBuffer, 0, 0, numSamples);
+    buffer.copyFrom(1, 0, rightVoiceBuffer, 0, 0, numSamples);
 }
 
 bool PluginProcessor::hasEditor() const
