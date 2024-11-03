@@ -1,0 +1,18 @@
+[33m5e63728[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mdev-amphicheiras[m[33m)[m Checkpoint for custom Bandpasses
+[33mce06f20[m EXOUME PANNED FUNDAMENTALS!
+[33mb0607ba[m Estw oti douleuei to calculate F0
+[33m0e3506a[m Add filtered output (buzzing)
+[33m1cd2c5e[m Add print for both fundamentals
+[33m1a2ece6[m Change fundamentalFrequency to vector
+[33m50b8183[m Checkpoint #6
+[33m70b088e[m Checkpoint #5 - RUNS OK NO MEMORY LEAKS
+[33mfc60e29[m Checkpoint #4 - processBlock runs
+[33mc41b2e2[m Again?
+[33m851c75c[m Sure
+[33mf00e87e[m Revert "Checkpoint #3"
+[33mefd0a24[m Revert "Add fundamental frequency extraction"
+[33meb4862d[m[33m ([m[1;31morigin/dev-amphicheiras[m[33m)[m Checkpoint #3
+[33mb135bf1[m Checkpoint #2
+[33md2dab1c[m Checkpoint #1
+[33m649c207[m Add fundamental frequency extraction
+[33me78bd88[m[33m ([m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mmain[m[33m)[m Initial commit
