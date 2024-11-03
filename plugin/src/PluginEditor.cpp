@@ -10,10 +10,19 @@ PluginEditor::PluginEditor(PluginProcessor &p) : AudioProcessorEditor(&p), audio
     addAndMakeVisible(leftFundamentalFrequencyLabel);
     leftFundamentalFrequencyLabel.setJustificationType(juce::Justification::centred);
     leftFundamentalFrequencyLabel.setText("Fundamental Frequency: 0 Hz", juce::dontSendNotification);
+    // leftFundamentalFrequencyLabel.setColour(juce::Colours::black);
+
+    // Set font size and color for the left label
+    // leftFundamentalFrequencyLabel.setFont(juce::Font(16.0f, juce::Font::bold));               // Change size to 16 and make it bold
+    leftFundamentalFrequencyLabel.setColour(juce::Label::textColourId, juce::Colours::black); // Set text color to black
 
     addAndMakeVisible(rightFundamentalFrequencyLabel);
     rightFundamentalFrequencyLabel.setJustificationType(juce::Justification::centred);
     rightFundamentalFrequencyLabel.setText("Fundamental Frequency: 0 Hz", juce::dontSendNotification);
+
+    // Set font size and color for the left label
+    // rightFundamentalFrequencyLabel.setFont(juce::Font(16.0f, juce::Font::bold));               // Change size to 16 and make it bold
+    rightFundamentalFrequencyLabel.setColour(juce::Label::textColourId, juce::Colours::black); // Set text color to black
 
     startTimerHz(30);
 }
@@ -25,10 +34,8 @@ PluginEditor::~PluginEditor()
 
 void PluginEditor::paint(juce::Graphics &g)
 {
-    // (Our component is opaque, so we must completely fill the background with a
-    // solid colour)
-    g.fillAll(getLookAndFeel().findColour(juce::ResizableWindow::backgroundColourId));
-    g.setColour(juce::Colours::white);
+    g.fillAll(juce::Colours::blueviolet);
+    g.setColour(juce::Colours::black);
     g.setFont(15.0f);
     g.drawFittedText("Vocal Divider says hi!", getLocalBounds(), juce::Justification::centred, 1);
 }

@@ -124,23 +124,21 @@ void PluginProcessor::processBlock(juce::AudioBuffer<float> &buffer, juce::MidiB
     // ****************************************************
 
     fftBuffer.clear();
-    //  assume mono input (mixed stereo)
+    // assume mono input (mixed stereo)
     fftBuffer.copyFrom(0, 0, buffer.getWritePointer(0), fftSize);
     // FFT
     fft.performFrequencyOnlyForwardTransform(fftBuffer.getWritePointer(0));
-
     // obtain f0
-    // Find the magnitudes in the FFT
     std::vector<float> magnitudes(fftSize / 2);
     for (int i = 1; i < fftSize / 2; ++i)
     {
         magnitudes[i] = fftBuffer.getSample(0, i);
     }
-    // Finding local maxima
+    // find local maxima
     std::vector<int> localMaximaIndices;
     for (int i = 1; i < magnitudes.size() - 1; ++i)
     {
-        // Check for local maxima
+        // magnitude threshold
         if (magnitudes[i] > 5)
         {
             if (magnitudes[i] > magnitudes[i - 1] && magnitudes[i] > magnitudes[i + 1])
@@ -149,30 +147,28 @@ void PluginProcessor::processBlock(juce::AudioBuffer<float> &buffer, juce::MidiB
             }
         }
     }
-
-    // If we found local maxima, identify the fundamental frequency (f0)
+    // identify fundamental frequency (f0)
     if (!localMaximaIndices.empty())
     {
-        DBG(magnitudes[localMaximaIndices[0]]);
-        // Assuming the first local maximum is the fundamental frequency
+        // first local maximum is f0_L
         fundamentalFrequency[0] = static_cast<int>(localMaximaIndices[0] * (getSampleRate() / fftSize));
 
-        // Assuming the second local maximum is the first harmonic
+        // second local maximum is f0_R
         if (localMaximaIndices.size() > 1)
         {
-            DBG(magnitudes[localMaximaIndices[1]]);
             fundamentalFrequency[1] = static_cast<int>(localMaximaIndices[1] * (getSampleRate() / fftSize));
         }
     }
-
-    // Debug output to see detected frequencies
-    DBG("Fundamental Frequencies: F0: " + juce::String(fundamentalFrequency[0]) + " F1: " + juce::String(fundamentalFrequency[1]));
-    // -------------------
-
+    // apply bandpass
     if (fundamentalFrequency[0] > 0)
-        applyBandpassFilter(buffer, 0, fundamentalFrequency[0], 20.0f);
+        applyMultiBandPassFilter(buffer, 0, fundamentalFrequency[0]);
     if (fundamentalFrequency[1] > 0)
-        applyBandpassFilter(buffer, 1, fundamentalFrequency[1], 20.0f);
+        applyMultiBandPassFilter(buffer, 1, fundamentalFrequency[1]);
+    // apply bandpass
+    // if (fundamentalFrequency[1] > 0)
+    //     applyBandpassFilter(buffer, 1, 1500, 100);
+    // if (fundamentalFrequency[0] > 0)
+    //     applyBandpassFilter(buffer, 0, 1500, 100);
 }
 
 bool PluginProcessor::hasEditor() const
@@ -208,40 +204,75 @@ juce::AudioProcessor *JUCE_CALLTYPE createPluginFilter()
     return new PluginProcessor();
 }
 
-void PluginProcessor::applyBandpassFilter(juce::AudioBuffer<float> &buffer, int channel, int centerFrequency, float bandwidth)
+void PluginProcessor::applyBandpassFilter(juce::AudioBuffer<float> &buffer, int centerFrequency, int bandwidth)
 {
-    // resize the allpass buffers to the number of channels and
-    // zero the new ones
-    x1.resize(1, 0.0);
-    x2.resize(1, 0.0);
-    y1.resize(1, 0.0);
-    y2.resize(1, 0.0);
+    // State variables for the filter
+    static double x1 = 0.0;
+    static double x2 = 0.0;
+    static double y1 = 0.0;
+    static double y2 = 0.0;
 
-    const double normalizedCenterFreq = centerFrequency / getSampleRate();
-    const double tanHalfBand = std::tan(PI * bandwidth / getSampleRate());
-    const double c = (tanHalfBand - 1.0) / (tanHalfBand + 1.0);
-    const double d = -std::cos(2.0 * PI * normalizedCenterFreq);
+    // Normalization
+    const double sampleRate = getSampleRate();
+    const double normalizedCenterFreq = centerFrequency / sampleRate;
+    const double normalizedBandwidth = bandwidth / sampleRate;
 
-    std::vector<double> b = {-c, d * (1.f - c), 1.f};
-    std::vector<double> a = {1.f, d * (1.f - c), -c};
+    // Calculate Quality Factor (Q)
+    const double Q = normalizedCenterFreq / normalizedBandwidth;
 
-    // const double Q = 5.0;
-    // double BW = centerFrequency / Q;
+    // Calculate coefficients
+    const double omega = 2.0 * PI * normalizedCenterFreq;
+    const double alpha = std::sin(omega) / (2.0 * Q); // Use Q to calculate alpha
 
-    auto channelSamples = buffer.getWritePointer(channel);
+    const double a0 = 1.0 + alpha; // Normalization factor
+    const double a1 = -2.0 * std::cos(omega);
+    const double a2 = 1.0 - alpha;
 
-    // for each sample in the channel
+    const double b0 = alpha;
+    const double b1 = 0.0;
+    const double b2 = -alpha;
+
+    auto channelSamples = buffer.getWritePointer(0);
     for (int i = 0; i < buffer.getNumSamples(); ++i)
     {
         double x = static_cast<double>(channelSamples[i]);
-        double y = b[0] * x + b[1] * x1[0] + b[2] * x2[0] - a[1] * y1[0] - a[2] * y2[0];
 
-        y2[0] = y1[0];
-        y1[0] = y;
-        x2[0] = x1[0];
-        x1[0] = x;
+        // Apply the filter equation
+        double y = (b0 / a0) * x + (b1 / a0) * x1 + (b2 / a0) * x2 - (a1 / a0) * y1 - (a2 / a0) * y2;
 
-        // we scale by 0.5 to stay in the [-1, 1] range
-        channelSamples[i] = static_cast<float>(0.5 * (x - y));
+        // Update state variables
+        y2 = y1;
+        y1 = y;
+        x2 = x1;
+        x1 = x;
+
+        // Output sample
+        channelSamples[i] = static_cast<float>(y); // Write the output directly
+    }
+}
+
+void PluginProcessor::applyMultiBandPassFilter(juce::AudioBuffer<float> &buffer, int channel, int f0)
+{
+    const int numBands = 3;
+
+    // Create temporary buffer for the output
+    juce::AudioBuffer<float> tempBuffer(buffer.getNumChannels(), buffer.getNumSamples());
+    tempBuffer.clear();
+    const std::vector<int> centerFrequencies = {f0 * 1, f0 * 2, f0 * 3}; // Hz
+    const std::vector<int> bandwidths = {100, 100, 100};                 // Hz
+    // Apply bandpass filters for each band
+    for (int band = 0; band < numBands; ++band)
+    {
+        // Call the existing bandpass filter function for each frequency band
+        applyBandpassFilter(tempBuffer, centerFrequencies[band], bandwidths[band]);
+    }
+
+    // Combine outputs
+    auto channelSamples = buffer.getWritePointer(channel);
+    auto tempSamples = tempBuffer.getReadPointer(channel);
+    for (int i = 0; i < buffer.getNumSamples(); ++i)
+    {
+        // Here you can sum the outputs from each band, or use a different combining method
+        channelSamples[i] += tempSamples[i]; // Simple summation, adjust based on needs
     }
 }

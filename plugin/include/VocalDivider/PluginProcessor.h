@@ -44,16 +44,14 @@ public:
 private:
     juce::dsp::FFT fft;
     juce::AudioBuffer<float> fftBuffer;
-    static constexpr int fftOrder = 9; // 2^10 = 1024-point FFT
+    static constexpr int fftOrder = 10; // 2^10 = 1024-point FFT
     static constexpr int fftSize = 1 << fftOrder;
     std::vector<int> fundamentalFrequency;
-    void applyBandpassFilter(juce::AudioBuffer<float> &buffer, int channel, int centerFrequency, float bandwidth);
 
-    std::vector<double> x1;
-    std::vector<double> x2;
-    std::vector<double> y1;
-    std::vector<double> y2;
     double PI = 3.1415926;
+
+    void applyBandpassFilter(juce::AudioBuffer<float> &buffer, int centerFrequency, int bandwidth);
+    void applyMultiBandPassFilter(juce::AudioBuffer<float> &buffer, int channel, int f0);
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PluginProcessor)
 };
