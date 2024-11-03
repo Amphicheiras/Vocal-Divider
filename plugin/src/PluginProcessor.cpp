@@ -4,11 +4,14 @@
 PluginProcessor::PluginProcessor() : AudioProcessor(BusesProperties().withInput("Input", juce::AudioChannelSet::stereo(), true).withOutput("Output", juce::AudioChannelSet::stereo(), true)),
                                      fft(fftOrder),
                                      fftBuffer(2, fftSize),
-                                     fundamentalFrequency(2, 0)
+                                     fundamentalFrequency(2, 0),
+                                     bandpassFilter(juce::dsp::IIR::Coefficients<float>::makeBandPass(44100, 20000.0f, 0.1f))
 {
 }
 
-PluginProcessor::~PluginProcessor() {}
+PluginProcessor::~PluginProcessor()
+{
+}
 
 const juce::String PluginProcessor::getName() const
 {
@@ -78,7 +81,15 @@ void PluginProcessor::changeProgramName(int index,
 
 void PluginProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
-    juce::ignoreUnused(sampleRate, samplesPerBlock);
+    lastSampleRate = sampleRate;
+    samplesPerBlock;
+    juce::dsp::ProcessSpec spec;
+    spec.sampleRate = sampleRate;
+    spec.maximumBlockSize = samplesPerBlock;
+    spec.numChannels = getTotalNumOutputChannels();
+
+    bandpassFilter.prepare(spec);
+    bandpassFilter.reset();
 }
 
 void PluginProcessor::releaseResources()
@@ -159,16 +170,16 @@ void PluginProcessor::processBlock(juce::AudioBuffer<float> &buffer, juce::MidiB
             fundamentalFrequency[1] = static_cast<int>(localMaximaIndices[1] * (getSampleRate() / fftSize));
         }
     }
+
+    juce::dsp::AudioBlock<float> block(buffer);
+    updateFilter();
+    bandpassFilter.process(juce::dsp::ProcessContextReplacing<float>(block));
+
     // apply bandpass
-    if (fundamentalFrequency[0] > 0)
-        applyMultiBandPassFilter(buffer, 0, fundamentalFrequency[0]);
-    if (fundamentalFrequency[1] > 0)
-        applyMultiBandPassFilter(buffer, 1, fundamentalFrequency[1]);
-    // apply bandpass
-    // if (fundamentalFrequency[1] > 0)
-    //     applyBandpassFilter(buffer, 1, 1500, 100);
     // if (fundamentalFrequency[0] > 0)
-    //     applyBandpassFilter(buffer, 0, 1500, 100);
+    //     applyMultiBandPassFilter(buffer, 0, fundamentalFrequency[0]);
+    // if (fundamentalFrequency[1] > 0)
+    //     applyMultiBandPassFilter(buffer, 1, fundamentalFrequency[1]);
 }
 
 bool PluginProcessor::hasEditor() const
@@ -204,75 +215,32 @@ juce::AudioProcessor *JUCE_CALLTYPE createPluginFilter()
     return new PluginProcessor();
 }
 
-void PluginProcessor::applyBandpassFilter(juce::AudioBuffer<float> &buffer, int centerFrequency, int bandwidth)
+// void PluginProcessor::applyBandpassFilter(juce::AudioBuffer<float> &buffer, int centerFrequency, int bandwidth)
+// {
+
+// }
+
+// void PluginProcessor::applyMultiBandPassFilter(juce::AudioBuffer<float> &buffer, int channel, int f0)
+// {
+
+// }
+
+void PluginProcessor::updateFilter()
 {
-    // State variables for the filter
-    static double x1 = 0.0;
-    static double x2 = 0.0;
-    static double y1 = 0.0;
-    static double y2 = 0.0;
+    float freq = 500.f;
+    float res = 3.f;
 
-    // Normalization
-    const double sampleRate = getSampleRate();
-    const double normalizedCenterFreq = centerFrequency / sampleRate;
-    const double normalizedBandwidth = bandwidth / sampleRate;
-
-    // Calculate Quality Factor (Q)
-    const double Q = normalizedCenterFreq / normalizedBandwidth;
-
-    // Calculate coefficients
-    const double omega = 2.0 * PI * normalizedCenterFreq;
-    const double alpha = std::sin(omega) / (2.0 * Q); // Use Q to calculate alpha
-
-    const double a0 = 1.0 + alpha; // Normalization factor
-    const double a1 = -2.0 * std::cos(omega);
-    const double a2 = 1.0 - alpha;
-
-    const double b0 = alpha;
-    const double b1 = 0.0;
-    const double b2 = -alpha;
-
-    auto channelSamples = buffer.getWritePointer(0);
-    for (int i = 0; i < buffer.getNumSamples(); ++i)
-    {
-        double x = static_cast<double>(channelSamples[i]);
-
-        // Apply the filter equation
-        double y = (b0 / a0) * x + (b1 / a0) * x1 + (b2 / a0) * x2 - (a1 / a0) * y1 - (a2 / a0) * y2;
-
-        // Update state variables
-        y2 = y1;
-        y1 = y;
-        x2 = x1;
-        x1 = x;
-
-        // Output sample
-        channelSamples[i] = static_cast<float>(y); // Write the output directly
-    }
+    *bandpassFilter.state = *juce::dsp::IIR::Coefficients<float>::makeLowPass(44100, freq, res);
 }
 
-void PluginProcessor::applyMultiBandPassFilter(juce::AudioBuffer<float> &buffer, int channel, int f0)
+void PluginProcessor::setCenterFrequency(float newFrequency)
 {
-    const int numBands = 3;
+    centerFrequency = newFrequency;
+    updateFilter();
+}
 
-    // Create temporary buffer for the output
-    juce::AudioBuffer<float> tempBuffer(buffer.getNumChannels(), buffer.getNumSamples());
-    tempBuffer.clear();
-    const std::vector<int> centerFrequencies = {f0 * 1, f0 * 2, f0 * 3}; // Hz
-    const std::vector<int> bandwidths = {100, 100, 100};                 // Hz
-    // Apply bandpass filters for each band
-    for (int band = 0; band < numBands; ++band)
-    {
-        // Call the existing bandpass filter function for each frequency band
-        applyBandpassFilter(tempBuffer, centerFrequencies[band], bandwidths[band]);
-    }
-
-    // Combine outputs
-    auto channelSamples = buffer.getWritePointer(channel);
-    auto tempSamples = tempBuffer.getReadPointer(channel);
-    for (int i = 0; i < buffer.getNumSamples(); ++i)
-    {
-        // Here you can sum the outputs from each band, or use a different combining method
-        channelSamples[i] += tempSamples[i]; // Simple summation, adjust based on needs
-    }
+void PluginProcessor::setQFactor(float newQ)
+{
+    Q = newQ;
+    updateFilter();
 }
