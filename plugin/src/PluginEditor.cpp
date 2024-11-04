@@ -5,7 +5,7 @@ PluginEditor::PluginEditor(PluginProcessor &p) : AudioProcessorEditor(&p), audio
 {
     juce::ignoreUnused(audioProcessor);
 
-    setSize(400, 300);
+    setSize(300, 75);
 
     addAndMakeVisible(leftFundamentalFrequencyLabel);
     leftFundamentalFrequencyLabel.setJustificationType(juce::Justification::centred);
@@ -14,7 +14,7 @@ PluginEditor::PluginEditor(PluginProcessor &p) : AudioProcessorEditor(&p), audio
 
     // Set font size and color for the left label
     // leftFundamentalFrequencyLabel.setFont(juce::Font(16.0f, juce::Font::bold));               // Change size to 16 and make it bold
-    leftFundamentalFrequencyLabel.setColour(juce::Label::textColourId, juce::Colours::white); // Set text color to black
+    leftFundamentalFrequencyLabel.setColour(juce::Label::textColourId, juce::Colours::wheat); // Set text color to black
 
     addAndMakeVisible(rightFundamentalFrequencyLabel);
     rightFundamentalFrequencyLabel.setJustificationType(juce::Justification::centred);
@@ -35,15 +35,12 @@ PluginEditor::~PluginEditor()
 void PluginEditor::paint(juce::Graphics &g)
 {
     g.fillAll(juce::Colours::blueviolet);
-    g.setColour(juce::Colours::black);
-    g.setFont(15.0f);
-    g.drawFittedText("Vocal Divider says hi!", getLocalBounds(), juce::Justification::centred, 1);
 }
 
 void PluginEditor::resized()
 {
-    leftFundamentalFrequencyLabel.setBounds(10, 40, getWidth() - 20, 40);
-    rightFundamentalFrequencyLabel.setBounds(10, 50, getWidth() - 20, 50);
+    leftFundamentalFrequencyLabel.setBounds(10, 10, getWidth() - 20, 40);
+    rightFundamentalFrequencyLabel.setBounds(10, 20, getWidth() - 20, 50);
 }
 
 void PluginEditor::timerCallback()

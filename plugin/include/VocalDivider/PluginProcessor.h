@@ -2,6 +2,7 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_dsp/juce_dsp.h>
+#include "VocalDivider/MultiBandFilter.h"
 
 class PluginProcessor final : public juce::AudioProcessor
 {
@@ -48,15 +49,13 @@ private:
     static constexpr int fftSize = 1 << fftOrder;
     std::vector<float> fundamentalFrequency;
 
+    MultiBandFilter multiBandFilter;
+
     double PI = 3.1415926;
     double lastSampleRate;
     juce::dsp::IIR::Filter<float> leftBandpassFilter;
     juce::dsp::IIR::Filter<float> rightBandpassFilter;
     void updateFilter(float freq, float res, bool channel);
-    float centerFrequency = 1000.0f; // Default center frequency in Hz
-    float Q = 0.707f;                // Default Q factor
-    // void setCenterFrequency(float newFrequency);
-    // void setQFactor(float newQ);
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PluginProcessor)
 };
