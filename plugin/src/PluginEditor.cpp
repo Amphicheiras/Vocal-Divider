@@ -14,7 +14,7 @@ PluginEditor::PluginEditor(PluginProcessor &p) : AudioProcessorEditor(&p), audio
 
     // Set font size and color for the left label
     // leftFundamentalFrequencyLabel.setFont(juce::Font(16.0f, juce::Font::bold));               // Change size to 16 and make it bold
-    leftFundamentalFrequencyLabel.setColour(juce::Label::textColourId, juce::Colours::black); // Set text color to black
+    leftFundamentalFrequencyLabel.setColour(juce::Label::textColourId, juce::Colours::white); // Set text color to black
 
     addAndMakeVisible(rightFundamentalFrequencyLabel);
     rightFundamentalFrequencyLabel.setJustificationType(juce::Justification::centred);
@@ -22,7 +22,7 @@ PluginEditor::PluginEditor(PluginProcessor &p) : AudioProcessorEditor(&p), audio
 
     // Set font size and color for the left label
     // rightFundamentalFrequencyLabel.setFont(juce::Font(16.0f, juce::Font::bold));               // Change size to 16 and make it bold
-    rightFundamentalFrequencyLabel.setColour(juce::Label::textColourId, juce::Colours::black); // Set text color to black
+    rightFundamentalFrequencyLabel.setColour(juce::Label::textColourId, juce::Colours::wheat); // Set text color to black
 
     startTimerHz(30);
 }

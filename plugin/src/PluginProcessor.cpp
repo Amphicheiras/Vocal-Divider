@@ -4,8 +4,7 @@
 PluginProcessor::PluginProcessor() : AudioProcessor(BusesProperties().withInput("Input", juce::AudioChannelSet::stereo(), true).withOutput("Output", juce::AudioChannelSet::stereo(), true)),
                                      fft(fftOrder),
                                      fftBuffer(2, fftSize),
-                                     fundamentalFrequency(2, 0),
-                                     bandpassFilter(juce::dsp::IIR::Coefficients<float>::makeBandPass(44100, 20000.0f, 0.1f))
+                                     fundamentalFrequency(2, 0)
 {
 }
 
@@ -88,8 +87,10 @@ void PluginProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
     spec.maximumBlockSize = samplesPerBlock;
     spec.numChannels = getTotalNumOutputChannels();
 
-    bandpassFilter.prepare(spec);
-    bandpassFilter.reset();
+    leftBandpassFilter.prepare(spec);
+    leftBandpassFilter.reset();
+    rightBandpassFilter.prepare(spec);
+    rightBandpassFilter.reset();
 }
 
 void PluginProcessor::releaseResources()
@@ -162,24 +163,29 @@ void PluginProcessor::processBlock(juce::AudioBuffer<float> &buffer, juce::MidiB
     if (!localMaximaIndices.empty())
     {
         // first local maximum is f0_L
-        fundamentalFrequency[0] = static_cast<int>(localMaximaIndices[0] * (getSampleRate() / fftSize));
+        fundamentalFrequency[0] = static_cast<float>(localMaximaIndices[0] * (getSampleRate() / fftSize));
 
         // second local maximum is f0_R
         if (localMaximaIndices.size() > 1)
         {
-            fundamentalFrequency[1] = static_cast<int>(localMaximaIndices[1] * (getSampleRate() / fftSize));
+            fundamentalFrequency[1] = static_cast<float>(localMaximaIndices[1] * (getSampleRate() / fftSize));
         }
     }
 
-    juce::dsp::AudioBlock<float> block(buffer);
-    updateFilter();
-    bandpassFilter.process(juce::dsp::ProcessContextReplacing<float>(block));
-
     // apply bandpass
-    // if (fundamentalFrequency[0] > 0)
-    //     applyMultiBandPassFilter(buffer, 0, fundamentalFrequency[0]);
-    // if (fundamentalFrequency[1] > 0)
-    //     applyMultiBandPassFilter(buffer, 1, fundamentalFrequency[1]);
+    juce::dsp::AudioBlock<float> block(buffer);
+    if (fundamentalFrequency[0] > 0)
+    {
+        updateFilter(880.f, 4.f, true);
+        juce::dsp::AudioBlock<float> leftChannelBlock(block.getSingleChannelBlock(0));
+        leftBandpassFilter.process(juce::dsp::ProcessContextReplacing<float>(leftChannelBlock));
+    }
+    if (fundamentalFrequency[1] > 0)
+    {
+        updateFilter(880.f, 4.f, false);
+        juce::dsp::AudioBlock<float> rightChannelBlock(block.getSingleChannelBlock(1));
+        rightBandpassFilter.process(juce::dsp::ProcessContextReplacing<float>(rightChannelBlock));
+    }
 }
 
 bool PluginProcessor::hasEditor() const
@@ -215,32 +221,23 @@ juce::AudioProcessor *JUCE_CALLTYPE createPluginFilter()
     return new PluginProcessor();
 }
 
-// void PluginProcessor::applyBandpassFilter(juce::AudioBuffer<float> &buffer, int centerFrequency, int bandwidth)
-// {
+void PluginProcessor::updateFilter(float freq, float res, bool channel)
+{
+    auto coefficients = juce::dsp::IIR::Coefficients<float>::makeBandPass(44100, freq, res);
+    if (channel)
+        leftBandpassFilter.coefficients = coefficients;
+    else
+        rightBandpassFilter.coefficients = coefficients;
+}
 
+// void PluginProcessor::setCenterFrequency(float newFrequency)
+// {
+//     centerFrequency = newFrequency;
+//     updateFilter();
 // }
 
-// void PluginProcessor::applyMultiBandPassFilter(juce::AudioBuffer<float> &buffer, int channel, int f0)
+// void PluginProcessor::setQFactor(float newQ)
 // {
-
+//     Q = newQ;
+//     updateFilter();
 // }
-
-void PluginProcessor::updateFilter()
-{
-    float freq = 500.f;
-    float res = 3.f;
-
-    *bandpassFilter.state = *juce::dsp::IIR::Coefficients<float>::makeLowPass(44100, freq, res);
-}
-
-void PluginProcessor::setCenterFrequency(float newFrequency)
-{
-    centerFrequency = newFrequency;
-    updateFilter();
-}
-
-void PluginProcessor::setQFactor(float newQ)
-{
-    Q = newQ;
-    updateFilter();
-}
