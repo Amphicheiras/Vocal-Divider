@@ -211,46 +211,46 @@ void PluginProcessor::setStateInformation(const void *data, int sizeInBytes)
     juce::ignoreUnused(data, sizeInBytes);
 }
 
-void PluginProcessor::applyBandpassFilter(juce::AudioBuffer<float> &buffer, float cutoffFrequency)
-{
-    std::vector<double> x1;
-    std::vector<double> x2;
-    std::vector<double> y1;
-    std::vector<double> y2;
+// void PluginProcessor::applyBandpassFilter(juce::AudioBuffer<float> &buffer, float cutoffFrequency)
+// {
+//     std::vector<double> x1;
+//     std::vector<double> x2;
+//     std::vector<double> y1;
+//     std::vector<double> y2;
 
-    x1.resize(buffer.getNumChannels(), 0.f);
-    x2.resize(buffer.getNumChannels(), 0.f);
-    y1.resize(buffer.getNumChannels(), 0.f);
-    y2.resize(buffer.getNumChannels(), 0.f);
+//     x1.resize(buffer.getNumChannels(), 0.f);
+//     x2.resize(buffer.getNumChannels(), 0.f);
+//     y1.resize(buffer.getNumChannels(), 0.f);
+//     y2.resize(buffer.getNumChannels(), 0.f);
 
-    // actual processing; each channel separately
-    for (auto channel = 0; channel < buffer.getNumChannels(); ++channel)
-    {
-        auto channelSamples = buffer.getWritePointer(channel);
+//     // actual processing; each channel separately
+//     for (auto channel = 0; channel < buffer.getNumChannels(); ++channel)
+//     {
+//         auto channelSamples = buffer.getWritePointer(channel);
 
-        const double tan = std::tan(PI * cutoffFrequency / getSampleRate());
-        const double c = (tan - 1) / (tan + 1);
-        const double d = -std::cos(2.f * PI * cutoffFrequency / getSampleRate());
+//         const double tan = std::tan(PI * cutoffFrequency / getSampleRate());
+//         const double c = (tan - 1) / (tan + 1);
+//         const double d = -std::cos(2.f * PI * cutoffFrequency / getSampleRate());
 
-        std::vector<double> b = {-c, d * (1.f - c), 1.f};
-        std::vector<double> a = {1.f, d * (1.f - c), -c}; // resize the allpass buffers to the number of channels
+//         std::vector<double> b = {-c, d * (1.f - c), 1.f};
+//         std::vector<double> a = {1.f, d * (1.f - c), -c}; // resize the allpass buffers to the number of channels
 
-        // for each sample in the channel
-        for (auto i = 0; i < buffer.getNumSamples(); ++i)
-        {
-            double x = channelSamples[i];
-            double y = b[0] * x + b[1] * x1[channel] + b[2] * x2[channel] - a[1] * y1[channel] - a[2] * y2[channel];
+//         // for each sample in the channel
+//         for (auto i = 0; i < buffer.getNumSamples(); ++i)
+//         {
+//             double x = channelSamples[i];
+//             double y = b[0] * x + b[1] * x1[channel] + b[2] * x2[channel] - a[1] * y1[channel] - a[2] * y2[channel];
 
-            y2[channel] = y1[channel];
-            y1[channel] = y;
-            x2[channel] = x1[channel];
-            x1[channel] = x;
+//             y2[channel] = y1[channel];
+//             y1[channel] = y;
+//             x2[channel] = x1[channel];
+//             x1[channel] = x;
 
-            // scale by 0.5 to stay in the [-1, 1] range
-            channelSamples[i] = 0.5f * static_cast<float>(x - y);
-        }
-    }
-}
+//             // scale by 0.5 to stay in the [-1, 1] range
+//             channelSamples[i] = 0.5f * static_cast<float>(x - y);
+//         }
+//     }
+// }
 
 // This creates new instances of the plugin.
 // This function definition must be in the global namespace.
