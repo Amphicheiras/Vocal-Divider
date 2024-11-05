@@ -1,0 +1,6 @@
+build/
+libs/
+.vscode
+cmake.check_cache
+CmakeSystem.cmake
+CMakeFiles/CMakeConfigureLog.yaml
