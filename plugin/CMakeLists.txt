@@ -51,4 +51,6 @@ else()
     target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Wpedantic)
 endif()
 
-source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR}/..)
+## ***** COMMENT-OUT IF USING LOCAL JUCE LIB ******
+# source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR}/..)
+## ************************************************

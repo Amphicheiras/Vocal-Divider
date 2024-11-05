@@ -173,16 +173,16 @@ void PluginProcessor::processBlock(juce::AudioBuffer<float> &buffer, juce::MidiB
     juce::dsp::AudioBlock<float> block(buffer);
     if (fundamentalFrequency[0] > 0)
     {
-        updateFilter(fundamentalFrequency[0], 7.f, true);
+        updateFilter(222, 7.f, true);
         juce::dsp::AudioBlock<float> leftChannelBlock(block.getSingleChannelBlock(0));
         leftBandpassFilter.process(juce::dsp::ProcessContextReplacing<float>(leftChannelBlock));
     }
-    if (fundamentalFrequency[1] > 0)
-    {
-        updateFilter(fundamentalFrequency[1], 7.f, false);
-        juce::dsp::AudioBlock<float> rightChannelBlock(block.getSingleChannelBlock(1));
-        rightBandpassFilter.process(juce::dsp::ProcessContextReplacing<float>(rightChannelBlock));
-    }
+    // if (fundamentalFrequency[1] > 0)
+    // {
+    //     updateFilter(fundamentalFrequency[1], 7.f, false);
+    //     juce::dsp::AudioBlock<float> rightChannelBlock(block.getSingleChannelBlock(1));
+    //     rightBandpassFilter.process(juce::dsp::ProcessContextReplacing<float>(rightChannelBlock));
+    // }
 }
 
 bool PluginProcessor::hasEditor() const
