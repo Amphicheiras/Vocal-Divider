@@ -88,15 +88,7 @@ void PluginProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
     spec.numChannels = getTotalNumOutputChannels();
 
     leftBandpassFilter.prepare(spec);
-    leftBandpassFilter.reset();
     rightBandpassFilter.prepare(spec);
-    rightBandpassFilter.reset();
-
-    multiBandFilter.prepare(spec);
-
-    multiBandFilter.addBand(sampleRate, 200.0, 5.f, 8);
-    multiBandFilter.addBand(sampleRate, 400.0, 5.f, 8);
-    multiBandFilter.addBand(sampleRate, 600.0, 5.f, 8);
 }
 
 void PluginProcessor::releaseResources()
@@ -177,21 +169,20 @@ void PluginProcessor::processBlock(juce::AudioBuffer<float> &buffer, juce::MidiB
             fundamentalFrequency[1] = static_cast<float>(localMaximaIndices[1] * (getSampleRate() / fftSize));
         }
     }
-    multiBandFilter.processBlock(buffer);
-    // // apply bandpasses
-    // juce::dsp::AudioBlock<float> block(buffer);
-    // if (fundamentalFrequency[0] > 0)
-    // {
-    //     updateFilter(fundamentalFrequency[0] * 10, 7.f, true);
-    //     juce::dsp::AudioBlock<float> leftChannelBlock(block.getSingleChannelBlock(0));
-    //     leftBandpassFilter.process(juce::dsp::ProcessContextReplacing<float>(leftChannelBlock));
-    // }
-    // if (fundamentalFrequency[1] > 0)
-    // {
-    //     updateFilter(fundamentalFrequency[1] * 10, 7.f, false);
-    //     juce::dsp::AudioBlock<float> rightChannelBlock(block.getSingleChannelBlock(1));
-    //     rightBandpassFilter.process(juce::dsp::ProcessContextReplacing<float>(rightChannelBlock));
-    // }
+    // apply bandpasses
+    juce::dsp::AudioBlock<float> block(buffer);
+    if (fundamentalFrequency[0] > 0)
+    {
+        updateFilter(fundamentalFrequency[0], 7.f, true);
+        juce::dsp::AudioBlock<float> leftChannelBlock(block.getSingleChannelBlock(0));
+        leftBandpassFilter.process(juce::dsp::ProcessContextReplacing<float>(leftChannelBlock));
+    }
+    if (fundamentalFrequency[1] > 0)
+    {
+        updateFilter(fundamentalFrequency[1], 7.f, false);
+        juce::dsp::AudioBlock<float> rightChannelBlock(block.getSingleChannelBlock(1));
+        rightBandpassFilter.process(juce::dsp::ProcessContextReplacing<float>(rightChannelBlock));
+    }
 }
 
 bool PluginProcessor::hasEditor() const

@@ -19,10 +19,8 @@ target_sources(${PROJECT_NAME}
     PRIVATE
         src/PluginEditor.cpp
         src/PluginProcessor.cpp
-        src/MultiBandFilter.cpp
         ${INCLUDE_DIR}/PluginEditor.h
         ${INCLUDE_DIR}/PluginProcessor.h
-        ${INCLUDE_DIR}/MultiBandFilter.h
 )
 
 target_include_directories(${PROJECT_NAME}
