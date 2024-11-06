@@ -1,5 +1,6 @@
 build/
 libs/
+github/
 .vscode
 cmake.check_cache
 CmakeSystem.cmake
