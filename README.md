@@ -2,6 +2,8 @@
 
 Separate 2 mixed harmonic voices to a stereo output with one voice on each channel.
 
+<img src="https://github.com/Amphicheiras/Vocal-Divider/blob/dev-amphicheiras/github/vocalDivider.png?raw=true" alt="center" width="250">
+
 ## Features
 
 
