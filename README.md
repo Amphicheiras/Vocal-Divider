@@ -1,6 +1,6 @@
 # Vocal Divider Audio Plugin
 
-Separate 2 voices found in a mono input to a stereo output with each voice on each channel.
+Separate 2 mixed harmonic voices to a stereo output with one voice on each channel.
 
 ## Features
 
