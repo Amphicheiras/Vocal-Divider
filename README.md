@@ -34,8 +34,6 @@ Separate 2 mixed harmonic voices to a stereo output with one voice on each chann
    cmake --build build
    ```
 
-4. Place "UF0" dir in your OS's "Documents" folder.
-
 ### Usage
 
 1. Load the Plugin:
